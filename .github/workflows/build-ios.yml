@@ -1,0 +1,75 @@
+name: Build iPhone IPA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build unsigned iPhone app
+    runs-on: macos-26
+    timeout-minutes: 40
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+      EXPO_NO_TELEMETRY: '1'
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Install dependencies and check types
+        run: |
+          npm ci
+          npm run typecheck
+      - name: Generate the iOS project
+        run: |
+          xcodebuild -version
+          npx --no-install expo prebuild --platform ios --no-install
+          cd ios
+          pod install
+      - name: Compile for physical iPhones
+        run: |
+          xcodebuild \
+            -workspace ios/STRIDE.xcworkspace \
+            -scheme STRIDE \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/stride-build" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+      - name: Validate and package the IPA
+        run: |
+          app="$RUNNER_TEMP/stride-build/Build/Products/Release-iphoneos/STRIDE.app"
+          test -s "$app/main.jsbundle"
+          python3 - "$app/Info.plist" <<'PY'
+          import plistlib
+          import sys
+
+          with open(sys.argv[1], 'rb') as file:
+              info = plistlib.load(file)
+          assert 'iPhoneOS' in info['CFBundleSupportedPlatforms'], 'Expected a device build'
+          minimum = tuple(map(int, info['MinimumOSVersion'].split('.')))
+          assert minimum <= (18, 7, 10), 'Build requires a newer iOS version than the target iPhone'
+          print("Minimum iOS version:", info['MinimumOSVersion'])
+          PY
+          lipo -verify_arch arm64 "$app/STRIDE"
+          mkdir -p "$RUNNER_TEMP/stride-package/Payload"
+          ditto "$app" "$RUNNER_TEMP/stride-package/Payload/STRIDE.app"
+          ditto -c -k --keepParent "$RUNNER_TEMP/stride-package/Payload" "$RUNNER_TEMP/STRIDE-unsigned.ipa"
+          unzip -tq "$RUNNER_TEMP/STRIDE-unsigned.ipa"
+      - name: Upload STRIDE IPA
+        uses: actions/upload-artifact@v7
+        with:
+          name: STRIDE-unsigned
+          path: ${{ runner.temp }}/STRIDE-unsigned.ipa
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7

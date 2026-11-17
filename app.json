@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "STRIDE",
+    "slug": "stride",
+    "version": "0.1.0",
+    "scheme": "stride",
+    "platforms": ["ios"],
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0D0D0F",
+    "icon": "./assets/icon.png",
+    "ios": {
+      "bundleIdentifier": "com.cyberzbit.stride",
+      "supportsTablet": false
+    },
+    "plugins": ["expo-router", "expo-sqlite", "expo-dev-client"]
+  }
+}
