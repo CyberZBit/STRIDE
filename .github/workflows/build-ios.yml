@@ -60,7 +60,7 @@ jobs:
           assert minimum <= (18, 7, 10), 'Build requires a newer iOS version than the target iPhone'
           print("Minimum iOS version:", info['MinimumOSVersion'])
           PY
-          lipo -verify_arch arm64 "$app/STRIDE"
+          lipo "$app/STRIDE" -verify_arch arm64
           mkdir -p "$RUNNER_TEMP/stride-package/Payload"
           ditto "$app" "$RUNNER_TEMP/stride-package/Payload/STRIDE.app"
           ditto -c -k --keepParent "$RUNNER_TEMP/stride-package/Payload" "$RUNNER_TEMP/STRIDE-unsigned.ipa"
