@@ -41,6 +41,12 @@ npm.cmd run check:ios
 
 Use `npm.cmd ci` for clean installations from the checked-in lockfile. The iOS export checks JavaScript bundling on Windows. The GitHub Actions workflow compiles the native iOS app on a macOS runner.
 
+### Walk replay on Windows
+
+Run `npm.cmd run preview:walk`, then open `dist/walk-preview.html` in a browser. Start a walk, simulate a lock and unlock, and end the walk. The replay uses sample fixes and STRIDE's distance and records calculations. To check just the calculations, run `npm.cmd run preview:walk -- --check`.
+
+The replay approximates the iPhone layout. Use a native iPhone build to check Apple Maps, the Motion & Fitness permission prompt, the Lock Screen activity, and GPS delivery while the phone is locked. Start a walk outdoors, lock the screen for a minute while walking, unlock it, and verify that the route and distance include the locked portion. End the walk and check History and Records.
+
 ### AltStore Classic source
 
 Once the first release finishes, open **AltStore Classic → Browse → Sources → +** and paste this URL.
@@ -96,4 +102,6 @@ The initial migration uses `PRAGMA user_version`, write-ahead logging and a tran
 
 Tap **Start walk** and grant precise location while using the app. The live map appears after the first usable GPS fix. Tap **End walk** to save the route and see the finish summary. In **History → View route and details**, you can review the route or delete the walk with confirmation. Walks saved before route persistence have their original statistics only.
 
-The iPhone Lock Screen Live Activity shows distance and elapsed time. Its Pause, Resume and End walk links open STRIDE to handle the action. Locking the phone or backgrounding the app pauses GPS tracking. Resume when you return to the app. GPS fixes are held in memory until the walk is saved, so iOS termination interrupts an unfinished walk. Background tracking, step counts and personal records are planned for later milestones.
+During a walk, STRIDE presents a dedicated screen with steps, distance, elapsed time, the route, and Pause and End walk controls. Allow Motion & Fitness access for measured steps. Completed walks populate the session, day, and week records. Walks from older versions may have no step data.
+
+The iPhone Lock Screen Live Activity shows distance and elapsed time. Its controls open STRIDE to handle the action. A walk started in STRIDE continues collecting GPS fixes when you lock your iPhone, go to the Home Screen, or switch apps. iOS can show its background location indicator during recording. GPS fixes are held in memory until the walk is saved. Force-quitting STRIDE or a system termination interrupts the unfinished walk.

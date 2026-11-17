@@ -39,10 +39,10 @@ struct StrideWalkWidget: Widget {
       HStack {
         Text(context.state.distance)
         Spacer()
-        if context.isStale {
+        if paused || context.isStale {
           Text(context.state.elapsed)
         } else {
-          Text(context.attributes.startedAt, style: .timer)
+          Text(context.state.timerStartedAt ?? context.attributes.startedAt, style: .timer)
             .multilineTextAlignment(.trailing)
         }
       }

@@ -2,7 +2,7 @@
   "expo": {
     "name": "STRIDE",
     "slug": "stride",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "scheme": "stride",
     "platforms": ["ios"],
     "orientation": "portrait",
@@ -13,7 +13,9 @@
       "bundleIdentifier": "com.cyberzbit.stride",
       "supportsTablet": false,
       "infoPlist": {
-        "NSSupportsLiveActivities": true
+        "NSSupportsLiveActivities": true,
+        "UIBackgroundModes": ["location"],
+        "NSMotionUsageDescription": "STRIDE counts steps during the walks you record."
       }
     },
     "plugins": [

@@ -1,5 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-import type { RoutePoint, WalkProgress } from '../domain/walk';
+import { activeWalkTime, type RoutePoint, type WalkClock, type WalkProgress } from '../domain/walk';
 import { completedSessionColumns, type CompletedSession } from './queries';
 
 export async function newWalkId(db: SQLiteDatabase): Promise<string> {
@@ -10,20 +10,20 @@ export async function newWalkId(db: SQLiteDatabase): Promise<string> {
 
 export async function saveWalk(
   db: SQLiteDatabase,
-  walk: { id: string; startedAt: number; endedAt: number; progress: WalkProgress; route: RoutePoint[] },
+  walk: { id: string; startedAt: number; endedAt: number; clock: WalkClock; progress: WalkProgress; route: RoutePoint[]; steps: number | null },
 ): Promise<void> {
-  const elapsed = walk.endedAt - walk.startedAt;
+  const elapsed = activeWalkTime(walk.clock, walk.endedAt);
   const { distanceMeters, maximumSpeed } = walk.progress;
   const moving = Math.min(elapsed, walk.progress.movingMs);
   await db.withExclusiveTransactionAsync(async (transaction) => {
     const session = await transaction.runAsync(
       `INSERT INTO sessions (
          id, started_at, ended_at, elapsed_duration, moving_duration, distance_meters,
-         walking_distance_meters, average_speed, maximum_speed, status
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed')
+         walking_distance_meters, average_speed, maximum_speed, steps, status
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed')
        ON CONFLICT(id) DO NOTHING`,
       walk.id, walk.startedAt, walk.endedAt, elapsed, moving, distanceMeters,
-      distanceMeters, moving ? distanceMeters / (moving / 1000) : 0, maximumSpeed,
+      distanceMeters, moving ? distanceMeters / (moving / 1000) : 0, maximumSpeed, walk.steps,
     );
     if (!session.changes || !walk.route.length) return;
     const insert = await transaction.prepareAsync(

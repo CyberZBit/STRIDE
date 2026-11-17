@@ -1,17 +1,18 @@
 import { requireOptionalNativeModule } from 'expo';
 import { useCallback, useRef } from 'react';
 import { formatDistance, formatDuration, type DistanceUnit } from '../domain/units';
+import { activeWalkTime, type WalkClock } from '../domain/walk';
 
 type ActivityWalk = {
   id: string;
-  startedAt: number;
+  clock: WalkClock;
   paused: boolean;
   endedAt?: number;
   progress: { distanceMeters: number };
 };
 
 const native = requireOptionalNativeModule<{
-  setWalkActivity(id: string, startedAt: number, distance: string, paused: boolean, elapsed: string): Promise<void>;
+  setWalkActivity(id: string, timerStartedAt: number, distance: string, paused: boolean, elapsed: string): Promise<void>;
   clearWalkActivities(): Promise<void>;
 }>('StrideNative');
 
@@ -28,7 +29,8 @@ export function useWalkActivity(unit: DistanceUnit) {
     if (last.current?.key === key && (!step || step.paused || time - last.current.time < 45_000)) return;
     last.current = { key, time };
     const push = () => step ? native.setWalkActivity(
-      step.id, step.startedAt, distance, step.paused, formatDuration(Math.max(0, time - step.startedAt)),
+      step.id, (step.clock.resumedAt ?? time) - step.clock.activeMs, distance, step.paused,
+      formatDuration(activeWalkTime(step.clock, time)),
     ) : native.clearWalkActivities();
     // Keep updates ordered so ending a walk cannot leave an older activity on screen.
     pending.current = pending.current.then(push).catch((error: unknown) => {

@@ -6,6 +6,7 @@ struct WalkActivityAttributes: ActivityAttributes {
     let distance: String
     let paused: Bool
     let elapsed: String
+    let timerStartedAt: Date?
   }
 
   let sessionId: String

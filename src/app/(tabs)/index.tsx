@@ -4,13 +4,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { readWalkingOverview } from '../../db/queries';
 import { formatHomeDate, getWalkingPeriods } from '../../domain/calendar';
-import { type DistanceUnit, formatDistance, formatDuration } from '../../domain/units';
+import { type DistanceUnit, formatDistance } from '../../domain/units';
 import { usePreferences } from '../../state/preferences';
 import { useFocusedQuery } from '../../state/useFocusedQuery';
-import { useWalk } from '../../state/useWalk';
+import { useWalkSession } from '../../state/walkSession';
 import { Icon } from '../../ui/Icon';
 import { Page, SectionHeading } from '../../ui/layout';
-import { RouteMap } from '../../ui/RouteMap';
 import { colors, fonts } from '../../ui/theme';
 
 function Distance({ meters, unit, hero = false }: {
@@ -32,16 +31,12 @@ export default function Home() {
   const router = useRouter();
   const { walkSession, walkAction } = useLocalSearchParams<{ walkSession?: string; walkAction?: string }>();
   const [now, setNow] = useState(Date.now);
-  const [savedWalks, setSavedWalks] = useState(0);
-  const tracking = useWalk(unit, (id) => {
-    setSavedWalks(count => count + 1);
-    router.push({ pathname: '/walk/[id]', params: { id, finished: '1' } });
-  });
+  const tracking = useWalkSession();
   const { walk } = tracking;
   const { today, week, tomorrow } = getWalkingPeriods(now);
   const readOverview = useCallback(
     (db: SQLiteDatabase) => readWalkingOverview(db, today, week, tomorrow),
-    [today, week, tomorrow, savedWalks],
+    [today, week, tomorrow, walk?.id],
   );
   const overview = useFocusedQuery(readOverview);
   const data = overview.status === 'loaded' ? overview.data : undefined;
@@ -94,43 +89,12 @@ export default function Home() {
       </View>
 
       <View style={styles.startArea}>
-        {walk ? (
-          <View style={styles.walkProgress}>
-            <View accessibilityLiveRegion="polite" style={styles.sessionBanner}>
-              <View style={[styles.statusDot, walk.paused && styles.pausedDot]} />
-              <Text accessibilityRole="header" style={styles.sessionTitle}>{walk.endedAt !== undefined ? 'Saving walk' : walk.paused ? 'Walk paused' : 'Walk in session'}</Text>
-            </View>
-            <View style={styles.weekLabel}>
-              <Distance meters={walk.progress.distanceMeters} unit={unit} />
-              <Text style={styles.label}>{formatDuration(tracking.elapsed)}</Text>
-            </View>
-          </View>
-        ) : null}
-        {walk?.endedAt === undefined ? (
-          <Pressable
-            disabled={tracking.busy}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: tracking.busy }}
-            onPress={walk && !walk.paused ? tracking.pause : tracking.startOrResume}
-            style={styles.startButton}
-          >
-            <Icon name="walk" color={colors.accent} size={22} />
-            <Text style={styles.startLabel}>{tracking.busy ? 'Starting…' : !walk ? 'Start walk' : walk.paused ? 'Resume walk' : 'Pause walk'}</Text>
-          </Pressable>
-        ) : null}
-        {walk ? (
-          <Pressable
-            disabled={tracking.busy}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: tracking.busy }}
-            onPress={tracking.finish}
-            style={[styles.startButton, styles.finishButton]}
-          >
-            <Text style={styles.label}>{walk.endedAt === undefined ? 'End walk' : tracking.busy ? 'Saving…' : 'Retry save'}</Text>
-          </Pressable>
-        ) : null}
-        {tracking.message || walk ? <Text style={styles.note}>{tracking.message ?? 'Keep STRIDE open while recording.'}</Text> : null}
-        {walk ? <RouteMap route={walk.route} live /> : null}
+        <Pressable disabled={tracking.busy || !!walk} accessibilityRole="button"
+          onPress={tracking.startOrResume} style={styles.startButton}>
+          <Icon name="walk" color={colors.accent} size={22} />
+          <Text style={styles.startLabel}>{tracking.busy ? 'Starting…' : 'Start walk'}</Text>
+        </Pressable>
+        {tracking.message ? <Text style={styles.note}>{tracking.message}</Text> : null}
       </View>
 
       <View style={styles.summary}>
@@ -222,20 +186,11 @@ const styles = StyleSheet.create({
   weekNumber: { fontFamily: fonts.display, fontSize: 31, color: colors.text },
   label: { fontFamily: fonts.emphasis, fontSize: 16, color: colors.text },
   startArea: { gap: 9 },
-  walkProgress: {
-    backgroundColor: colors.accentWash, borderColor: colors.accent, borderWidth: 1,
-    borderRadius: 16, padding: 16, gap: 8,
-  },
-  sessionBanner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sessionTitle: { fontFamily: fonts.emphasis, fontSize: 19, color: colors.text },
-  statusDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent },
-  pausedDot: { backgroundColor: colors.muted },
   startButton: {
     minHeight: 58, padding: 13, backgroundColor: colors.accentWash, borderColor: '#58331E',
     borderWidth: 1, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
   },
   startLabel: { fontFamily: fonts.emphasis, fontSize: 17, color: colors.accent },
-  finishButton: { backgroundColor: colors.raised, borderColor: colors.border },
   note: { fontFamily: fonts.body, fontSize: 13, lineHeight: 19, color: colors.muted },
   error: { fontFamily: fonts.body, fontSize: 14, color: colors.danger },
   history: { gap: 11, marginTop: 3 },

@@ -11,7 +11,7 @@ const NativeRouteMap = requireNativeView<{
   style: StyleProp<ViewStyle>;
 }>('StrideNative', 'StrideRouteMapView');
 
-export function RouteMap({ route, live = false }: { route: RoutePoint[]; live?: boolean }) {
+export function RouteMap({ route, live = false, expand = false }: { route: RoutePoint[]; live?: boolean; expand?: boolean }) {
   const [overviewRequest, setOverviewRequest] = useState(0);
   const points = useMemo(
     () => route.map(point => [point.latitude, point.longitude, Number(point.startsSegment)]),
@@ -20,15 +20,15 @@ export function RouteMap({ route, live = false }: { route: RoutePoint[]; live?: 
 
   if (!points.length) {
     return (
-      <View style={[styles.card, styles.empty]}>
+      <View style={[styles.card, styles.empty, expand && styles.expandedCard]}>
         <Text style={styles.note}>{live ? 'Waiting for a precise GPS fix.' : 'No GPS route was saved for this walk.'}</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.card}>
-      <NativeRouteMap points={points} live={live} overviewRequest={overviewRequest} style={styles.map} />
+    <View style={[styles.card, expand && styles.expandedCard]}>
+      <NativeRouteMap points={points} live={live} overviewRequest={overviewRequest} style={[styles.map, expand && styles.expandedMap]} />
       <Pressable
         accessibilityRole="button"
         onPress={() => setOverviewRequest(request => request + 1)}
@@ -45,6 +45,8 @@ const styles = StyleSheet.create({
   empty: { minHeight: 80, alignItems: 'center', justifyContent: 'center', padding: 16 },
   note: { color: colors.muted, fontFamily: fonts.body, fontSize: 14, textAlign: 'center' },
   map: { height: 275, width: '100%' },
+  expandedCard: { flex: 1 },
+  expandedMap: { flex: 1, height: undefined },
   overview: {
     position: 'absolute', right: 10, top: 10, minHeight: 44,
     justifyContent: 'center', paddingHorizontal: 12, borderRadius: 12, backgroundColor: colors.background,

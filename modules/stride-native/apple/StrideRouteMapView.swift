@@ -38,6 +38,7 @@ final class StrideRouteMapView: ExpoView, MKMapViewDelegate {
   }
 
   func render() {
+    var latestCoordinate: CLLocationCoordinate2D?
     if needsRender || renderedLive != isLive {
       needsRender = false
       renderedLive = isLive
@@ -64,6 +65,7 @@ final class StrideRouteMapView: ExpoView, MKMapViewDelegate {
       if let start = segments.first?.first {
         addMarker(at: start, title: "Start")
         if points.count > 1, let last = segments.last?.last {
+          latestCoordinate = last
           addMarker(at: last, title: isLive ? "Last GPS fix" : "End")
         }
       }
@@ -72,6 +74,12 @@ final class StrideRouteMapView: ExpoView, MKMapViewDelegate {
       let animated = fitted
       renderedOverview = overviewRequest
       fitRoute(animated: animated)
+    } else if isLive, let latestCoordinate {
+      let visible = map.visibleMapRect
+      let inner = visible.insetBy(dx: visible.width * 0.15, dy: visible.height * 0.15)
+      if !inner.contains(MKMapPoint(latestCoordinate)) {
+        map.setCenter(latestCoordinate, animated: true)
+      }
     }
   }
 

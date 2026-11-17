@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>STRIDE walk replay</title>
+  <style>
+    :root { color-scheme: dark; font: 16px system-ui, sans-serif; color: #f7f5f3; background: #0d0d0f; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px; }
+    p { color: #a5a2a1; line-height: 1.5; }
+    h1 { margin: 0; font-size: 32px; letter-spacing: -1px; }
+    button { font: inherit; font-weight: 650; border: 0; border-radius: 14px; min-height: 48px; padding: 10px 16px; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: default; }
+    .grid { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; justify-content: center; }
+    .phone { width: min(100%, 414px); min-height: 600px; padding: 20px; border: 1px solid #2b2b2f; border-radius: 22px; }
+    .phone > section:not([hidden]) { display: grid; gap: 16px; }
+    .control { width: min(100%, 270px); }
+    .stats { display: flex; gap: 14px; margin: 0; padding: 13px; background: #17171a; border: 1px solid #2b2b2f; border-radius: 16px; }
+    .stats > div { flex: 1; }
+    dt { color: #a5a2a1; font-size: 13px; }
+    dd { margin: 4px 0 0; font-size: 29px; font-weight: 750; white-space: nowrap; }
+    dd:first-of-type { font-variant-numeric: tabular-nums; }
+    .accent { background: #ff7938; color: #211009; }
+    .steps { color: #ff7938; }
+    .quiet { background: #212124; color: #f7f5f3; }
+    .actions { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
+    .map { margin: 0; min-width: 0; border: 1px solid #2b2b2f; border-radius: 18px; overflow: hidden; background: #171b20; }
+    canvas { width: 100%; height: 316px; display: block; background-size: 36px 36px;
+      background-image: linear-gradient(#ffffff09 1px, transparent 1px), linear-gradient(90deg, #ffffff09 1px, transparent 1px); }
+    figcaption { color: #a5a2a1; font-size: 12px; padding: 9px 13px; }
+  </style>
+</head>
+<body>
+  <main class="grid">
+    <div class="phone">
+      <section id="home">
+        <h1>STRIDE</h1>
+        <button id="start" class="accent">Start walk</button>
+        <p id="record" hidden></p>
+      </section>
+      <section id="walk" hidden>
+        <h1 id="status">Walk in session</h1>
+        <dl class="stats">
+          <div><dt>Steps</dt><dd class="steps" id="steps">0</dd></div>
+          <div><dt>Distance</dt><dd id="distance">0.00 km</dd></div>
+          <div><dt>Active time</dt><dd id="elapsed">0:00</dd></div>
+        </dl>
+        <figure class="map">
+          <canvas id="route" width="720" height="632" aria-label="Simulated GPS route"></canvas>
+          <figcaption>Sample route</figcaption>
+        </figure>
+        <div class="actions">
+          <button id="pause" class="quiet">Pause</button>
+          <button id="finish" class="accent">End walk</button>
+        </div>
+        <button id="done" class="accent" hidden>Done</button>
+      </section>
+    </div>
+    <aside class="control">
+      <h2>Windows replay</h2>
+      <p>Try a simulated walk. Locking queues sample GPS fixes, and unlocking adds them to the route. The preview runs the same distance and records calculations as STRIDE.</p>
+      <button id="lock" class="quiet" disabled>Simulate lock</button>
+      <p id="notice" aria-live="polite"></p>
+    </aside>
+  </main>
+  <!-- replay data -->
+  <script>
+    const { activeWalkTime, appendWalkFixes, emptyWalk } = load('./walk');
+    const { formatDistance, formatDuration, formatSteps } = load('./units');
+    const { calculateWalkingRecords } = load('./records');
+    const byId = id => document.getElementById(id);
+    const canvas = byId('route');
+    const paint = canvas.getContext('2d');
+    let walk, cursor, clock, now, steps, segmentStart, queued, paused, locked, ended;
+    const saved = [];
+
+    function drawRoute() {
+      const width = canvas.width, height = canvas.height;
+      const position = fix => [
+        85 + (fix.longitude - sampleFixes[0].longitude) * (width - 170) / 0.00126,
+        height - 95 - (fix.latitude - sampleFixes[0].latitude) * (height - 190) / 0.00036,
+      ];
+      paint.clearRect(0, 0, width, height);
+      paint.beginPath();
+      paint.strokeStyle = '#ff7938';
+      paint.lineWidth = 9;
+      paint.lineJoin = paint.lineCap = 'round';
+      for (const fix of walk.route) {
+        const point = position(fix);
+        if (fix.startsSegment) paint.moveTo(...point);
+        else paint.lineTo(...point);
+      }
+      paint.stroke();
+      walk.route.filter((_, i) => i === 0 || i === walk.route.length - 1).forEach((fix, i) => {
+        paint.beginPath();
+        paint.fillStyle = i === 0 ? '#57c77d' : ended ? '#ff7272' : '#ff7938';
+        paint.arc(...position(fix), 11, 0, 2 * Math.PI);
+        paint.fill();
+      });
+    }
+
+    function render() {
+      byId('status').textContent = ended ? 'Nice work!' : paused ? 'Walk paused' : 'Walk in session';
+      byId('steps').textContent = formatSteps(steps);
+      byId('distance').textContent = formatDistance(walk.progress.distanceMeters, 'km') + ' km';
+      byId('elapsed').textContent = formatDuration(activeWalkTime(clock, now));
+      byId('pause').textContent = paused ? 'Resume' : 'Pause';
+      byId('lock').textContent = locked ? 'Simulate unlock' : 'Simulate lock';
+      byId('notice').textContent = locked ? 'Locked. Sample GPS fixes are being queued.' :
+        cursor === sampleFixes.length && !ended ? 'Sample route complete. End the walk to see the result.' : '';
+      drawRoute();
+    }
+
+    function receive(fixes) {
+      if (fixes.length) walk = appendWalkFixes(walk, fixes, segmentStart, fixes.at(-1).timestamp);
+    }
+
+    byId('start').onclick = () => {
+      walk = { progress: emptyWalk, route: [] };
+      cursor = steps = 0;
+      segmentStart = now = sampleFixes[0].timestamp;
+      clock = { activeMs: 0, resumedAt: now };
+      queued = [];
+      paused = locked = ended = false;
+      byId('home').hidden = byId('done').hidden = true;
+      byId('walk').hidden = byId('pause').parentElement.hidden = false;
+      byId('lock').disabled = byId('finish').disabled = byId('pause').disabled = false;
+      render();
+    };
+    byId('lock').onclick = () => {
+      locked = !locked;
+      if (!locked) { receive(queued); steps += queued.filter(fix => fix !== sampleFixes[0]).length * 13; queued = []; }
+      byId('pause').disabled = byId('finish').disabled = locked;
+      render();
+    };
+    byId('pause').onclick = () => {
+      paused = !paused;
+      if (paused) {
+        clock = { activeMs: activeWalkTime(clock, now), resumedAt: null };
+        walk = { ...walk, progress: { ...walk.progress, lastFix: null } };
+      } else {
+        clock = { ...clock, resumedAt: now };
+        segmentStart = sampleFixes[cursor]?.timestamp ?? Infinity;
+      }
+      render();
+    };
+    byId('finish').onclick = () => {
+      ended = true;
+      const { progress } = walk;
+      saved.push({ id: String(saved.length), started_at: sampleFixes[0].timestamp, steps,
+        elapsed_duration: activeWalkTime(clock, now), moving_duration: progress.movingMs,
+        walking_distance_meters: progress.distanceMeters, maximum_speed: progress.maximumSpeed,
+        average_speed: progress.movingMs ? progress.distanceMeters * 1000 / progress.movingMs : 0 });
+      byId('pause').parentElement.hidden = true;
+      byId('done').hidden = false;
+      byId('lock').disabled = true;
+      render();
+    };
+    byId('done').onclick = () => {
+      byId('home').hidden = false;
+      byId('walk').hidden = true;
+      byId('record').hidden = false;
+      const { session } = calculateWalkingRecords(saved);
+      byId('record').textContent = 'Longest walk: ' + formatDistance(session.distance, 'km') + ' km';
+    };
+    setInterval(() => {
+      if (!walk || ended || cursor >= sampleFixes.length) return;
+      const fix = sampleFixes[cursor++];
+      now = fix.timestamp;
+      if (!paused) {
+        if (locked) queued.push(fix);
+        else { receive([fix]); if (cursor > 1) steps += 13; }
+      }
+      render();
+    }, 800);
+  </script>
+</body>
+</html>

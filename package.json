@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "expo start --dev-client",
+    "preview:walk": "node scripts/walk-preview.cjs",
     "typecheck": "tsc --noEmit",
     "check:ios": "expo export --platform ios --output-dir dist"
   },

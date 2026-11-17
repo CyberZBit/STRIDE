@@ -8,6 +8,12 @@ export type WalkFix = {
 
 export type RoutePoint = WalkFix & { startsSegment: boolean };
 
+export type WalkClock = { activeMs: number; resumedAt: number | null };
+
+export function activeWalkTime(clock: WalkClock, now: number): number {
+  return clock.activeMs + (clock.resumedAt === null ? 0 : Math.max(0, now - clock.resumedAt));
+}
+
 export type WalkProgress = {
   lastFix: WalkFix | null;
   distanceMeters: number;
@@ -21,6 +27,25 @@ export const emptyWalk: WalkProgress = {
   movingMs: 0,
   maximumSpeed: 0,
 };
+
+export function appendWalkFixes(
+  walk: { progress: WalkProgress; route: RoutePoint[] },
+  fixes: WalkFix[],
+  segmentStartedAt: number,
+  receivedAt: number,
+): { progress: WalkProgress; route: RoutePoint[] } {
+  let { progress, route } = walk;
+  const added: RoutePoint[] = [];
+  for (const fix of fixes) {
+    if (fix.timestamp < segmentStartedAt || fix.timestamp > receivedAt) continue;
+    const next = recordWalkFix(progress, fix);
+    if (next === progress || !next.lastFix) continue;
+    added.push({ ...next.lastFix, startsSegment: next.distanceMeters === progress.distanceMeters });
+    progress = next;
+  }
+  if (added.length) route = [...route, ...added];
+  return { progress, route };
+}
 
 function distanceBetween(start: WalkFix, end: WalkFix): number {
   const radians = Math.PI / 180;

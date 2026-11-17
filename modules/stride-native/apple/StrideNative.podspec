@@ -11,6 +11,6 @@ Pod::Spec.new do |s|
   s.swift_version = '5.0'
   s.static_framework = true
   s.dependency 'ExpoModulesCore'
-  s.frameworks   = 'MapKit', 'ActivityKit'
+  s.frameworks   = 'MapKit', 'ActivityKit', 'CoreLocation', 'CoreMotion'
   s.source_files = '**/*.swift'
 end

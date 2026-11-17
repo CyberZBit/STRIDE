@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { databaseName, migrateDatabase } from '../db/migrate';
 import { PreferencesProvider } from '../state/preferences';
+import { WalkSessionProvider } from '../state/walkSession';
 import { ScreenMessage } from '../ui/layout';
 import { colors, fonts } from '../ui/theme';
 
@@ -60,9 +61,11 @@ export default function RootLayout() {
           ) : (
             <SQLiteProvider databaseName={databaseName} onInit={migrateDatabase} onError={onDatabaseError}>
               <PreferencesProvider>
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="(tabs)" />
-                </Stack>
+                <WalkSessionProvider>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="(tabs)" />
+                  </Stack>
+                </WalkSessionProvider>
               </PreferencesProvider>
             </SQLiteProvider>
           )}
