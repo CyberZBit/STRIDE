@@ -1,6 +1,6 @@
 # STRIDE
 
-STRIDE is a private iPhone walking tracker. This repository contains Milestone 1, the four-tab app and its local database foundation. The app targets an iPhone XR running iOS 18.7.10. Expo SDK 58 requires iOS 16.4 or later.
+STRIDE is an iPhone walking tracker that saves walk summaries in an on-device database. The app targets an iPhone XR running iOS 18.7.10. Expo SDK 58 requires iOS 16.4 or later.
 
 ## Project structure
 
@@ -8,7 +8,7 @@ STRIDE is a private iPhone walking tracker. This repository contains Milestone 1
 | --- | --- |
 | `src/app/_layout.tsx` | App theme, fonts, storage initialization and root navigator |
 | `src/app/(tabs)/_layout.tsx` | Expo Router tab bar |
-| `src/app/(tabs)/index.tsx` | Home dashboard with today's and this week's completed walking distance |
+| `src/app/(tabs)/index.tsx` | Home dashboard, distance totals and walk controls |
 | `src/app/(tabs)/history.tsx` | Read-only chronological session list and empty state |
 | `src/app/(tabs)/records.tsx` | Session, Day and Week record views |
 | `src/app/(tabs)/settings.tsx` | Distance units, storage information and app version |
@@ -23,7 +23,7 @@ STRIDE is a private iPhone walking tracker. This repository contains Milestone 1
 
 Expo SDK 58 pairs React Native 0.88 with React 19.3. Expo Router uses Expo Constants, Expo Linking, React Native Screens and Safe Area Context. Expo SQLite stores app data. Expo Dev Client supports testing native code on the device. Expo Status Bar, Expo Symbols and Expo Font provide the dark interface, native icons and bundled DM Sans and Barlow Condensed fonts. TypeScript and the React type definitions are development dependencies.
 
-Add Expo Location, Expo Task Manager, the local iOS Core Motion module and the map package in their respective milestones. Select the tile provider when implementing maps, after verifying its grayscale support, attribution rules, usage limits and potential cost.
+Expo Location measures position during a walk. Expo Task Manager, the iOS Core Motion module and maps are planned for later milestones.
 
 ## Install on Windows
 
@@ -38,6 +38,16 @@ npm.cmd run check:ios
 ```
 
 Use `npm.cmd ci` for clean installations from the checked-in lockfile. The iOS export checks JavaScript bundling on Windows. The GitHub Actions workflow compiles the native iOS app on a macOS runner.
+
+### AltStore Classic source
+
+Once the first release finishes, open **AltStore Classic → Browse → Sources → +** and paste this URL.
+
+```text
+https://github.com/CyberZBit/STRIDE/releases/latest/download/altstore-source.json
+```
+
+Each push to `main` starts a build. A successful build publishes the unsigned IPA and a matching feed as GitHub release assets. GitHub supplies a different build number for each run and retry. In AltStore, open **My Apps** to check for updates. If STRIDE was installed from a file and doesn't show an update there, open its listing under **Browse** and install from the source using the same Apple Account. Keep AltServer running on Windows and connect the phone by Wi-Fi or USB for signing.
 
 ### Sideload from Windows
 
@@ -80,4 +90,4 @@ Open each tab, switch between all three record views, change kilometres to miles
 
 The initial migration uses `PRAGMA user_version`, write-ahead logging and a transaction. Foreign keys cascade from a deleted session to its route points and flags. A partial unique index permits at most one open session. Timestamps are UTC Unix milliseconds. Durations use milliseconds, distances use metres and speeds use metres per second. A null step count represents unavailable data. Home groups completed sessions by their start time in `Europe/Stockholm` and adds their confirmed walking distance. Weeks begin Monday.
 
-Milestone 1 uses a local app database and bundles its fonts. The default iOS backup policy still applies. Before recording routes, verify that iOS excludes the SQLite directory and sidecar files from cloud backup. GPS recording, motion permissions, route maps, transportation review, history management and record computation follow in later milestones. The Start session control is disabled until recording is implemented.
+Tap **Start walk** and grant precise location while using the app. Keep STRIDE open while walking. Locking the phone or backgrounding the app pauses tracking. Resume from Home, then tap **Finish and save walk**. The completed walk appears in History and contributes to the day and week totals. GPS fixes are held in memory during a session. SQLite stores distance, elapsed and moving time, and speed summaries. The default iOS backup policy still applies to this database. An unfinished walk is lost if iOS terminates the app. Background tracking, route maps, step counts and record computation are planned for later milestones.

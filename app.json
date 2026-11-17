@@ -2,7 +2,7 @@
   "expo": {
     "name": "STRIDE",
     "slug": "stride",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "scheme": "stride",
     "platforms": ["ios"],
     "orientation": "portrait",
@@ -13,6 +13,18 @@
       "bundleIdentifier": "com.cyberzbit.stride",
       "supportsTablet": false
     },
-    "plugins": ["expo-router", "expo-sqlite", "expo-dev-client"]
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-dev-client",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow STRIDE to measure the distance of walks you record.",
+          "locationAlwaysPermission": false,
+          "locationAlwaysAndWhenInUsePermission": false
+        }
+      ]
+    ]
   }
 }
