@@ -3,7 +3,10 @@ export type WalkFix = {
   longitude: number;
   accuracy: number | null;
   timestamp: number;
+  speed?: number | null;
 };
+
+export type RoutePoint = WalkFix & { startsSegment: boolean };
 
 export type WalkProgress = {
   lastFix: WalkFix | null;

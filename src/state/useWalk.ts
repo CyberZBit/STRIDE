@@ -3,17 +3,20 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { newWalkId, saveWalk } from '../db/walks';
-import { emptyWalk, recordWalkFix, type WalkProgress } from '../domain/walk';
+import type { DistanceUnit } from '../domain/units';
+import { emptyWalk, recordWalkFix, type RoutePoint, type WalkProgress } from '../domain/walk';
+import { useWalkActivity } from './useWalkActivity';
 
 type Walk = {
   id: string;
   startedAt: number;
   endedAt?: number;
   progress: WalkProgress;
+  route: RoutePoint[];
   paused: boolean;
 };
 
-export function useWalk(onSaved: () => void) {
+export function useWalk(unit: DistanceUnit, onSaved: (id: string) => void) {
   const db = useSQLiteContext();
   const [walk, setWalk] = useState<Walk | null>(null);
   const [busy, setBusy] = useState(false);
@@ -24,10 +27,17 @@ export function useWalk(onSaved: () => void) {
   const mounted = useRef(false);
   const watcher = useRef<Location.LocationSubscription | null>(null);
   const generation = useRef(0);
+  const syncActivity = useWalkActivity(unit);
+  const syncActivityRef = useRef(syncActivity);
+  useEffect(() => {
+    syncActivityRef.current = syncActivity;
+    syncActivity(current.current);
+  }, [syncActivity]);
 
   const update = useCallback((next: Walk | null) => {
     current.current = next;
     setWalk(next);
+    syncActivityRef.current(next);
   }, []);
 
   const stopWatcher = useCallback(() => {
@@ -61,7 +71,10 @@ export function useWalk(onSaved: () => void) {
   const hasUnfinishedWalk = walk !== null && walk.endedAt === undefined;
   useEffect(() => {
     if (!hasUnfinishedWalk) return;
-    const timer = setInterval(() => setNow(Date.now()), 1000);
+    const timer = setInterval(() => {
+      setNow(Date.now());
+      syncActivityRef.current(current.current);
+    }, 1000);
     return () => clearInterval(timer);
   }, [hasUnfinishedWalk]);
 
@@ -88,7 +101,7 @@ export function useWalk(onSaved: () => void) {
       const startedAt = Date.now();
       setNow(startedAt);
       update(existing ? { ...existing, paused: false } : {
-        id, startedAt, progress: emptyWalk, paused: false,
+        id, startedAt, progress: emptyWalk, route: [], paused: false,
       });
 
       const watchGeneration = ++generation.current;
@@ -101,8 +114,12 @@ export function useWalk(onSaved: () => void) {
             || AppState.currentState !== 'active' || timestamp < startedAt || timestamp > receivedAt) return;
           const progress = recordWalkFix(active.progress, {
             latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy, timestamp,
+            speed: coords.speed !== null && Number.isFinite(coords.speed) && coords.speed >= 0 ? coords.speed : null,
           });
-          if (progress !== active.progress) update({ ...active, progress });
+          if (progress.lastFix && progress !== active.progress) {
+            const startsSegment = progress.distanceMeters === active.progress.distanceMeters;
+            update({ ...active, progress, route: [...active.route, { ...progress.lastFix, startsSegment }] });
+          }
         },
         () => {
           if (generation.current !== watchGeneration) return;
@@ -136,7 +153,7 @@ export function useWalk(onSaved: () => void) {
       await saveWalk(db, completed);
       if (mounted.current) {
         update(null);
-        onSaved();
+        onSaved(completed.id);
       }
     } catch {
       if (mounted.current) setMessage('Could not save the walk. Tap Retry save to try again.');

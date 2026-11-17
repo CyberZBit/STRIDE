@@ -43,6 +43,7 @@ jobs:
           fs.writeFileSync('app.json', JSON.stringify(config, null, 2) + '\n');
           JS
           npx --no-install expo prebuild --platform ios --no-install
+          ruby scripts/add-live-activity.rb
           cd ios
           pod install
       - name: Compile for physical iPhones
@@ -61,6 +62,7 @@ jobs:
         run: |
           app="$RUNNER_TEMP/stride-build/Build/Products/Release-iphoneos/STRIDE.app"
           test -s "$app/main.jsbundle"
+          test -s "$app/PlugIns/StrideWalkWidget.appex/StrideWalkWidget"
           python3 - "$app/Info.plist" <<'PY'
           import plistlib
           import sys

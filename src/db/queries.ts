@@ -17,6 +17,9 @@ export type CompletedSession = {
   steps: number | null;
 };
 
+export const completedSessionColumns = `id, started_at, elapsed_duration, moving_duration,
+  walking_distance_meters, average_speed, maximum_speed, steps`;
+
 export async function readWalkingOverview(
   db: Pick<SQLiteDatabase, 'getFirstAsync'>,
   today: number,
@@ -38,8 +41,7 @@ export async function readWalkingOverview(
 
 export function readCompletedSessions(db: SQLiteDatabase): Promise<CompletedSession[]> {
   return db.getAllAsync<CompletedSession>(
-    `SELECT id, started_at, elapsed_duration, moving_duration, walking_distance_meters,
-            average_speed, maximum_speed, steps
+    `SELECT ${completedSessionColumns}
      FROM sessions
      WHERE status = 'completed'
      ORDER BY started_at DESC, id`,

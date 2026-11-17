@@ -2,7 +2,7 @@
   "expo": {
     "name": "STRIDE",
     "slug": "stride",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "scheme": "stride",
     "platforms": ["ios"],
     "orientation": "portrait",
@@ -11,7 +11,10 @@
     "icon": "./assets/icon.png",
     "ios": {
       "bundleIdentifier": "com.cyberzbit.stride",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSSupportsLiveActivities": true
+      }
     },
     "plugins": [
       "expo-router",

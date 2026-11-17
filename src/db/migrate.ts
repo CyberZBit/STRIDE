@@ -1,4 +1,5 @@
 import { initialSchema } from './migrations/001-initial';
+import { routeSegments } from './migrations/002-route-segments';
 
 type MigrationDatabase = {
   execAsync(sql: string): Promise<void>;
@@ -6,7 +7,7 @@ type MigrationDatabase = {
 };
 
 export const databaseName = 'stride.db';
-const migrations = [initialSchema];
+const migrations = [initialSchema, routeSegments];
 
 // Initialize the connection before exposing it to consumers.
 export async function migrateDatabase(db: MigrationDatabase): Promise<void> {
